@@ -209,24 +209,150 @@ Remove-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<websitename>'
 -filter 'system.web/authentication/forms/credentials' -name '.'
 ```
 
+## 3. ASP.NET Configuration Recommendations
+
+### Ensure 'deployment method retail' is set
+Utilizing the switch specifically intended for production IIS servers will eliminate the risk
+of vital application and system information leakages that would otherwise occur if tracing
+or debug were to be left enabled, or `customErrors` were to be left off.
+
+```ps1
+# Open the machine.config file located in: %systemroot%\Microsoft.NET\Framework\<framework version>\Config
+# Add the line <deployment retail='true' /> within the <system.web> section:
+<system.web>
+  <deployment retail="true" />
+</system.web>
+
+# Do the same for the 'Microsoft.NET\Framework64' directory
+```
+
+### Ensure 'debug' is turned off
+Setting `<compilation debug>` to false ensures that detailed error information does not
+inadvertently display during live application usage, mitigating the risk of application
+information leakage falling into unscrupulous hands.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
+-filter "system.web/compilation" -name "debug" -value "False"
+```
+
+### Ensure custom error messages are not off
+`customErrors` can be set to On or RemoteOnly without leaking detailed application
+information to the client. Ensuring that `customErrors` is not set to Off will help mitigate the
+risk of malicious persons learning detailed application error and server configuration
+information.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/Default Web Site' 
+-filter "system.web/customErrors" -name "mode" -value "RemoteOnly"
+```
+
+### Ensure IIS HTTP detailed errors are hidden from displaying remotely
+The information contained in custom error messages can provide clues as to how
+applications function, opening up unnecessary attack vectors. Ensuring custom errors are
+never displayed remotely can help mitigate the risk of malicious persons obtaining
+information as to how the application works.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
+-filter "system.webServer/httpErrors" -name "errorMode" -value "DetailedLocalOnly"
+```
+The default `errorMode` is DetailedLocalOnly.
+
+### Ensure ASP.NET stack tracing is not enabled
+In an active Web Site, tracing should not be enabled because it can display sensitive
+configuration and detailed stack trace information to anyone who views the pages in the
+site. If necessary, the `localOnly` attribute can be set to true to have trace information
+displayed only for localhost requests. Ensuring that ASP.NET stack tracing is not on will
+help mitigate the risk of malicious persons learning detailed stack trace information.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
+-filter "system.web/trace" -name "enabled" -value "False"
+```
+The default value for ASP.NET tracing is off.
+
+### Ensure 'httpcookie' mode is configured for session state
+Cookies that have been properly configured help mitigate the risk of attacks such as session
+hi-jacking attempts by preventing ASP.NET from having to move session information to the
+URL; moving session information in URI causes session IDs to show up in proxy logs, and is
+accessible to client scripting via `document.location`.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
+-filter "system.web/sessionState" -name "mode" -value "StateServer"
+```
+
+### Ensure 'cookies' are set with HttpOnly attribute
+When cookies are set with the `HttpOnly flag`, they cannot be accessed by client side
+scripting running in the user's browser. Preventing client-side scripting from accessing
+cookie content may reduce the probability of a cross site scripting attack materializing into
+a successful session hijack.
+
+```ps1
+# Locate and open the application's web.config file
+# Add the httpCookies tag within <system.web>:
+<configuration>
+  <system.web>
+    <httpCookies httpOnlyCookies="true" />
+  </system.web>
+</configuration>
+```
+
+### Ensure 'MachineKey validation method - .Net 3.5' is configured
+Setting the validation property to AES will provide confidentiality and integrity protection
+to the viewstate. AES is the strongest encryption algorithm supported by the validation
+property. Setting the validation property to SHA1 will provide integrity protection to the
+viewstate. SHA1 is the strongest hashing algorithm supported by the validation property.
+
+```
+%systemroot%\system32\inetsrv\appcmd set config /commit:WEBROOT
+/section:machineKey /validation:SHA1 
+```
+The default Machine Key validation method is SHA1.
+
+### Ensure 'MachineKey validation method - .Net 4.5' is configured
+Setting the validation property to AES will provide confidentiality and integrity protection
+to the viewstate. AES is the strongest encryption algorithm supported by the validation
+property. SHA-2 is the strongest hashing algorithm supported by the validation property so it should
+be used as the validation method for the MachineKey in .Net 4.5.
+
+```ps1
+# Use AES encryption for the ASP.NET Machine Key
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT' 
+-filter "system.web/machineKey" -name "validation" -value "AES"
+```
+The default Machine Key validation method is SHA256.
+
+### Ensure global .NET trust level is configured
+This only applies to .Net 2.0. Future versions have stopped supporting this feature.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT' 
+-filter "system.web/trust" -name "level" -value "Medium"
+```
+By default, ASP.NET web applications run under the full trust setting
+
+### Ensure X-Powered-By Header is removed
+While this is not the only way to fingerprint a site through the response headers, it makes it
+harder and prevents some potential attackers.
+
+```ps1
+Remove-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webserver/httpProtocol/customHeaders" -name "." -AtElement @{name='XPowered-By'}
+```
+
+### Ensure Server Header is removed
+While this is not the only way to fingerprint a site through the response headers, it makes it
+harder and prevents some potential attackers. The server header removal directive is a
+new feature in IIS 10 that can assist in mitigating this risk.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/' 
+-filter "system.webServer/security/requestFiltering" -name "removeServerHeader" -value "True"
+```
 
 
-
-
-
-
-| 3. ASP.NET Configuration Recommendations                                                    |
-| :------------------------------------------------------------------------------------------ |
-| 3.1 Ensure 'deployment method retail' is set                                                |
-| 3.2 Ensure 'debug' is turned off                                                            |
-| 3.3 Ensure custom error messages are not off                                                |
-| 3.4 Ensure IIS HTTP detailed errors are hidden from displaying remotely                     |
-| 3.5 Ensure ASP.NET stack tracing is not enabled                                             |
-| 3.6 Ensure 'httpcookie' mode is configured for session state                                |
-| 3.7 Ensure 'cookies' are set with HttpOnly attribute                                        |
-| 3.8 Ensure 'MachineKey validation method - .Net 3.5' is configured                          |
-| 3.9 Ensure 'MachineKey validation method - .Net 4.5' is configured                          |
-| 3.10  Ensure global .NET trust level is configured                                          |
 | 3.11 Ensure X-Powered-By Header is removed                                                  |
 | 3.12 Ensure Server Header is removed                                                        |
 
