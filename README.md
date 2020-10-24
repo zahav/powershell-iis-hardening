@@ -6,7 +6,7 @@ Ref: https://www.cisecurity.org/benchmark/microsoft_iis/
 
 ## 1. Basic Configurations
 
-### 1.1 Ensure web content is on non-system partition
+### Ensure web content is on non-system partition
 Isolating web content from system files may reduce the probability of:
   - Web sites/applications exhausting system disk space
   - File IO vulnerability in the web site/application from affecting the confidentiality and/or integrity of system files
@@ -24,7 +24,7 @@ To change the mapping for the application named app1 which resides under the Def
 5. In the Actions pane, select Basic Settings
 6. In the Physical path text box, put the new loocation of the application, e.g. `D:\wwwroot\app1`
 
-### 1.2 Ensure 'host headers' are on all sites
+### Ensure 'host headers' are on all sites
 Requiring a Host header for all sites may reduce the probability of:
   - DNS rebinding attacks successfully compromising or abusing site data or functionality
   - IP-based scans successfully identifying or interacting with a target application hosted on IIS
@@ -43,7 +43,7 @@ Perform the following in IIS Manager to configure host headers for the Default W
 6. Under host name, enter the sites FQDN, such as <www.examplesite.com>
 7. Click OK, then Close
 
-### 1.3 Ensure 'directory browsing' is set to disabled 
+### Ensure 'directory browsing' is set to disabled 
 Ensuring that directory browsing is disabled may reduce the probability of disclosing
 sensitive content that is inadvertently accessible via IIS.
 
@@ -52,7 +52,7 @@ Ensure Directory Browsing has been disabled at the server level:
 Set-WebConfigurationProperty -Filter system.webserver/directorybrowse -PSPath iis:\ -Name Enabled -Value False
 ```
 
-### 1.4 Ensure 'Application pool identity' is configured for all application pools
+### Ensure 'Application pool identity' is configured for all application pools
 Setting Application Pools to use unique least privilege identities such as
 `ApplicationPoolIdentity` reduces the potential harm the identity could cause should the
 application ever become compromised.
@@ -67,7 +67,7 @@ configured Application Pool. Additionally, `ApplicationPoolIdentity` can be made
 default for all Application Pools by using the Set Application Pool Defaults action on the
 Application Pools node.
 
-### 1.5 Ensure 'unique application pools' is set for sites
+### Ensure 'unique application pools' is set for sites
 By setting sites to run under unique Application Pools, resource-intensive applications can
 be assigned to their own application pools which could improve server and application
 performance.In addition, it can help maintain application availability: if an application in
@@ -82,7 +82,7 @@ Set-ItemProperty -Path 'IIS:\Sites\<website name>' -Name applicationPool -Value 
 ```
 By default, all Sites created will use the Default Application Pool (DefaultAppPool).
 
-### 1.6 Ensure 'application pool identity' is configured for anonymous user identity
+### Ensure 'application pool identity' is configured for anonymous user identity
 Configuring the anonymous user identity to use the application pool identity will help
 ensure site isolation - provided sites are set to use the application pool identity. Since a
 unique principal will run each application pool, it will ensure the identity is least privilege.
@@ -94,7 +94,7 @@ Set-ItemProperty -Path IIS:\AppPools\<apppool name> -Name passAnonymousToken -Va
 ```
 The default identity for the anonymous user is the IUSR virtual account.
 
-### 1.7 Ensure WebDav feature is disabled
+### Ensure WebDav feature is disabled
 WebDAV is not widely used, and it has serious security concerns because it may allow
 clients to modify unauthorized files on the web server. Therefore, the WebDav feature
 should be disabled.
@@ -103,19 +103,116 @@ should be disabled.
 Remove-WindowsFeature Web-DAV-Publishing
 ```
 
+## 2. Configure Authentication and Authorization
+
+### Ensure 'global authorization rule' is set to restrict access
+Configuring a global Authorization rule that restricts access will ensure inheritance of the
+settings down through the hierarchy of web directories; if that content is copied elsewhere,
+the authorization rules flow with it. This will ensure access to current and future content is
+only granted to the appropriate principals, mitigating risk of accidental or unauthorized
+access.
+
+To configure URL Authorization at the server level:
+```ps1
+Remove-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/authorization" 
+-name "." -AtElement @{users='*';roles='';verbs=''}
+
+Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/authorization" 
+-name "." -value @{accessType='Allow';roles='Administrators'}
+```
+The default server-level setting is to allow all users access.
+
+### Ensure access to sensitive site features is restricted to authenticated principals only
+Configuring authentication will help mitigate the risk of unauthorized users accessing data
+and/or services, and in some cases reduce the potential harm that can be done to a system.
+
+The example below disabled Windows Authentication and ensures that Forms Authentication is configured, 
+cookies will always be used, and SSL is required:
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter 'system.webServer/security/authentication/anonymousAuthentication' 
+-name 'enabled' -value 'True'
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter 'system.webServer/security/authentication/windowsAuthentication' 
+-name 'enabled' -value 'False'
+
+# Add the forms tag within <system.web>:
+<system.web>
+  <authentication>
+    <forms cookieless="UseCookies" requireSSL="true" />
+  </authentication>
+</system.web>
+```
+
+### Ensure 'forms authentication' requires SSL
+Requiring SSL for Forms Authentication will protect the confidentiality of credentials
+during the login process, helping mitigate the risk of stolen user information.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/Default Web Site' 
+-filter 'system.web/authentication/forms' -name 'requireSSL' -value 'True'
+```
+
+### Ensure 'forms authentication' is set to use cookies
+Using cookies to manage session state may help mitigate the risk of session hi-jacking
+attempts by preventing ASP.NET from having to move session information to the URL.
+Moving session information identifiers into the URL may cause session IDs to show up in
+proxy logs, browsing history, and be accessible to client scripting via `document.location`.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/Default Web Site' 
+-filter 'system.web/authentication/forms' -name 'cookieless' -value 'UseCookies'
+```
+
+### Ensure 'cookie protection mode' is configured for forms authentication
+By encrypting and validating the cookie, the confidentiality and integrity of data within the
+cookie is assured. This helps mitigate the risk of attacks such as session hijacking and
+impersonation.
+
+```ps1
+Get-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
+-filter 'system.web/authentication/forms' -name 'protection'
+```
+When cookies are used for Forms Authentication, the default cookie protection mode is
+`All`, meaning the application encrypts and validates the cookie.
+
+### Ensure transport layer security for 'basic authentication' is configured
+Credentials sent in clear text can be easily intercepted by malicious code or persons.
+Enforcing the use of Transport Layer Security will help mitigate the chances of hijacked
+credentials.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location '<website name>' 
+-filter 'system.webServer/security/access' -name 'sslFlags' -value 'Ssl'
+```
+
+### Ensure 'passwordFormat' is not set to clear
+Authentication credentials should always be protected to reduce the risk of stolen
+authentication credentials.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
+-filter 'system.web/authentication/forms/credentials' -name 'passwordFormat' -value 'SHA1'
+```
+The default `passwordFormatmethod` is SHA1.
+
+### Ensure 'credentials' are not stored in configuration files
+Authentication credentials should always be protected to reduce the risk of stolen
+authentication credentials. For security reasons, it is recommended that user credentials
+not be stored an any IIS configuration files.
+
+```ps1
+Remove-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<websitename>' 
+-filter 'system.web/authentication/forms/credentials' -name '.'
+```
 
 
 
-| 2. Configure Authentication and Authorization                                               |
-| :------------------------------------------------------------------------------------------ |
-| 2.1 Ensure 'global authorization rule' is set to restrict access                            |
-| 2.2 Ensure access to sensitive site features is restricted to authenticated principals only |
-| 2.3  Ensure 'forms authentication' requires SSL                                             |
-| 2.4 Ensure 'forms authentication' is set to use cookies                                     |
-| 2.5 Ensure 'cookie protection mode' is configured for forms authentication                  |
-| 2.6 Ensure transport layer security for 'basic authentication' is configured                |
-| 2.7 Ensure 'passwordFormat' is not set to clear                                             |
-| 2.8 Ensure 'credentials' are not stored in configuration files                              |
+
+
 
 
 | 3. ASP.NET Configuration Recommendations                                                    |
