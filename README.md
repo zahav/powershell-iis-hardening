@@ -4,11 +4,9 @@ This repo contains PowerShell scripts to harden a default IIS 10 configuration o
 Based on the CIS v1.1.1 benchmarks.
 Ref: https://www.cisecurity.org/benchmark/microsoft_iis/
 
-## High Level CIS IIS 10 Security Controls
+## 1. Basic Configurations
 
-### 1. Basic Configurations
-
-#### 1.1 Ensure web content is on non-system partition
+### 1.1 Ensure web content is on non-system partition
 Isolating web content from system files may reduce the probability of:
   - Web sites/applications exhausting system disk space
   - File IO vulnerability in the web site/application from affecting the confidentiality and/or integrity of system files
@@ -26,7 +24,7 @@ To change the mapping for the application named app1 which resides under the Def
 5. In the Actions pane, select Basic Settings
 6. In the Physical path text box, put the new loocation of the application, e.g. `D:\wwwroot\app1`
 
-#### 1.2 Ensure 'host headers' are on all sites
+### 1.2 Ensure 'host headers' are on all sites
 Requiring a Host header for all sites may reduce the probability of:
   - DNS rebinding attacks successfully compromising or abusing site data or functionality
   - IP-based scans successfully identifying or interacting with a target application hosted on IIS
@@ -45,7 +43,7 @@ Perform the following in IIS Manager to configure host headers for the Default W
 6. Under host name, enter the sites FQDN, such as <www.examplesite.com>
 7. Click OK, then Close
 
-#### 1.3 Ensure 'directory browsing' is set to disabled 
+### 1.3 Ensure 'directory browsing' is set to disabled 
 Ensuring that directory browsing is disabled may reduce the probability of disclosing
 sensitive content that is inadvertently accessible via IIS.
 
@@ -54,7 +52,7 @@ Ensure Directory Browsing has been disabled at the server level:
 Set-WebConfigurationProperty -Filter system.webserver/directorybrowse -PSPath iis:\ -Name Enabled -Value False
 ```
 
-#### 1.4 Ensure 'Application pool identity' is configured for all application pools
+### 1.4 Ensure 'Application pool identity' is configured for all application pools
 Setting Application Pools to use unique least privilege identities such as
 `ApplicationPoolIdentity` reduces the potential harm the identity could cause should the
 application ever become compromised.
@@ -69,7 +67,7 @@ configured Application Pool. Additionally, `ApplicationPoolIdentity` can be made
 default for all Application Pools by using the Set Application Pool Defaults action on the
 Application Pools node.
 
-#### 1.5 Ensure 'unique application pools' is set for sites
+### 1.5 Ensure 'unique application pools' is set for sites
 By setting sites to run under unique Application Pools, resource-intensive applications can
 be assigned to their own application pools which could improve server and application
 performance.In addition, it can help maintain application availability: if an application in
@@ -84,7 +82,7 @@ Set-ItemProperty -Path 'IIS:\Sites\<website name>' -Name applicationPool -Value 
 ```
 By default, all Sites created will use the Default Application Pool (DefaultAppPool).
 
-#### 1.6 Ensure 'application pool identity' is configured for anonymous user identity
+### 1.6 Ensure 'application pool identity' is configured for anonymous user identity
 Configuring the anonymous user identity to use the application pool identity will help
 ensure site isolation - provided sites are set to use the application pool identity. Since a
 unique principal will run each application pool, it will ensure the identity is least privilege.
@@ -96,7 +94,7 @@ Set-ItemProperty -Path IIS:\AppPools\<apppool name> -Name passAnonymousToken -Va
 ```
 The default identity for the anonymous user is the IUSR virtual account.
 
-#### 1.7 Ensure WebDav feature is disabled
+### 1.7 Ensure WebDav feature is disabled
 WebDAV is not widely used, and it has serious security concerns because it may allow
 clients to modify unauthorized files on the web server. Therefore, the WebDav feature
 should be disabled.
