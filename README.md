@@ -510,19 +510,54 @@ Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'
 -filter "system.webServer/security/dynamicIpSecurity/denyByConcurrentRequests" 
 -name "enabled" -value "True"
 
+# You can customise this value to suit your needs. Start with 5 and adjust as necessary
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
 -filter "system.webServer/security/dynamicIpSecurity/denyByConcurrentRequests" 
--name "maxConcurrentRequests" -value 5
+-name "maxConcurrentRequests" -value <number of requests>
 ```
 
+## 5. IIS Logging Recommendations
+
+### Ensure Default IIS web log location is moved
+Moving IIS logging to a restricted, non-system drive will help mitigate the risk of logs being
+maliciously altered, removed, or lost in the event of system drive failure(s).
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.applicationHost/sites/siteDefaults/logFile" 
+-name "directory" -value <new log location>
+```
+
+### Ensure Advanced IIS logging is enabled
+Many of the fields available in Advanced Logging many can provide extensive, real-time
+data and details not otherwise obtainable. Developers and security professionals can use
+this information to identify and remediate application vulnerabilities/attack patterns.
+
+To enable Advanced Logging using the UI:
+1. Open Internet Information Services (IIS) Manager
+2. Click the server in the Connections pane
+3. Double-click the Logging icon on the Home page
+4. Click Select Fields
+
+Note: IIS Advanced Logging is enabled by default.
+
+### Ensure ‘ETW Logging’ is enabled
+IIS flushes log information to disk, therefore prior to IIS, administrators do not have access
+to real-time logging information. Text-based log files can also be difficult and time
+consuming to process. By enabling ETW, administrators have access to use standard query
+tools for viewing real-time logging information.
+
+To configure ETW logging:
+1. Open IIS Manager
+2. Select the server or site to enable ETW
+3. Select Logging.
+4. Ensure Log file format is W3C.
+5. Select Both log file and ETW event
+6. Save your settings.
 
 
 
-| 5. IIS Logging Recommendations                                                              |
-| :------------------------------------------------------------------------------------------ |
-| 5.1 Ensure Default IIS web log location is moved                                            |
-| 5.2 Ensure Advanced IIS logging is enabled                                                  |
-| 5.3 Ensure ‘ETW Logging’ is enabled                                                         |
+
 
 
 | 6. FTP Requests                                                                             |
