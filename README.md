@@ -582,19 +582,193 @@ Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST'
 -name "enabled" -value "True"
 ```
 
+## 7. Transport Encryption
 
+### Ensure HSTS Header is set
+HTTP Strict Transport Security (HSTS) is a simple and widely supported standard to
+protect visitors by ensuring that their browsers always connect to a website over HTTPS.
+HSTS exists to remove the need for the common, insecure practice of redirecting users
+from http:// to https:// URLs. HSTS relies on the User Agent/Browser to enforce the
+required behavior. All major browsers support it. If the browser doesn't support HSTS, it
+will be ignored.
 
-| 7. Transport Encryption                                                                     |
-| :------------------------------------------------------------------------------------------ |
-| 7.1 Ensure HSTS Header is set                                                               |
-| 7.2 Ensure SSLv2 is Disabled                                                                |
-| 7.3 Ensure SSLv3 is Disabled                                                                |
-| 7.4 Ensure TLS 1.0 is Disabled                                                              |
-| 7.5 Ensure TLS 1.1 is Disabled                                                              |
-| 7.6 Ensure TLS 1.2 is Enabled                                                               |
-| 7.7 Ensure NULL Cipher Suites is Disabled                                                   |
-| 7.8 Ensure DES Cipher Suites is Disabled                                                    |
-| 7.9 Ensure RC4 Cipher Suites is Disabled                                                    |
-| 7.10 Ensure AES 128/128 Cipher Suite is Disabled                                            |
-| 7.11 Ensure AES 256/256 Cipher Suite is Enabled                                             |
-| 7.12 Ensure TLS Cipher Suite Ordering is Configured                                         |
+```
+# To set the HTTP Header at the server level using an AppCmd.exe command, run the
+following command from an elevated command prompt:
+
+%systemroot%\system32\inetsrv\appcmd.exe set config -
+section:system.webServer/httpProtocol /+"customHeaders.[name='StrictTransport-Security',value='max-age=31536000; includeSubDomains; preload']"
+
+# To set the HTTP Header at the Website level using an AppCmd.exe command, run the
+following command from an elevated command prompt:
+
+%systemroot%\system32\inetsrv\appcmd.exe set config "<em>Website"</em> -
+section:system.webServer/httpProtocol /+"customHeaders.[name='StrictTransport-Security',value='max-age=31536000; includeSubDomains; preload']"
+```
+The recommended max age is 8 minutes (480 seconds) or greater. The values above are set to 1 year (31536000 seconds).
+
+### Ensure SSLv2 is disabled
+Disabling weak protocols will help ensure the confidentiality and integrity of in-transit
+data. This protocol is not considered cryptographically secure.
+
+```ps1
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server' -Force | Out-Null
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Server' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 2.0\Client' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure SSLv3 is Disabled
+Disabling weak protocols will help ensure the confidentiality and integrity of in-transit
+data. This protocol is not considered cryptographically secure.
+
+```ps1
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server' -Force | Out-Null
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Server' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\SSL 3.0\Client' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure TLS 1.0 is Disabled
+The PCI Data Security Standard 3.1 recommends disabling "early TLS" along with SSL.
+SSL and early TLS are not considered strong cryptography and cannot be used as a security
+control after June 30, 2016.
+
+```ps1
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Force | Out-Null
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure TLS 1.1 is Disabled
+The PCI Data Security Standard 3.1 recommends disabling "early TLS" along with SSL.
+SSL and early TLS are not considered strong cryptography and cannot be used as a security
+control after June 30, 2016.
+
+```ps1
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Force | Out-Null
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' 
+-name 'DisabledByDefault' -value '1' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure TLS 1.2 is Enabled
+TLS 1.2 is the most recent and mature protocol for protecting the confidentiality and
+integrity of HTTP traffic.
+
+```ps1
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' 
+-name 'Enabled' -value '1' -PropertyType 'DWord' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' 
+-name 'DisabledByDefault' -value '0' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure NULL Cipher Suites is Disabled
+The NULL cipher does not provide data confidentiality or integrity. It is recommended that
+the NULL cipher be disabled.
+
+```ps1
+New-Item 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\NULL' -Force | Out-Null
+New-ItemProperty -path'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\NULL' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure DES Cipher Suites is Disabled
+DES is a weak symmetric-key cipher. It is recommended that it be disabled.
+
+```ps1
+(Get-Item 'HKLM:\').OpenSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers', $true).CreateSubKey('DES 56/56')
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\DES 56/56' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure RC4 Cipher Suites is Disabled
+RC4 is a stream cipher that has known practical attacks. It is recommended that RC4 be
+disabled. The only RC4 cipher enabled by default on Server 2012 and 2012 R2 is RC4
+128/128.
+
+```ps1
+(Get-Item 'HKLM:\').OpenSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers', $true).CreateSubKey('RC4 40/128')
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+(Get-Item 'HKLM:\').OpenSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers', $true).CreateSubKey('RC4 56/128')
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+(Get-Item'HKLM:\').OpenSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers', $true).CreateSubKey('RC4 64/128')
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 64/128' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+(Get-Item 'HKLM:\').OpenSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers', $true).CreateSubKey('RC4 128/128')
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure AES 128/128 Cipher Suite is Disabled
+Enabling AES 128/128 may be required for client compatibility. Enable or disable this
+cipher suite accordingly. Enabling AES 256/256 is recommended as this cipher does not suffer from known practical attacks.
+
+```ps1
+(Get-Item 'HKLM:\').OpenSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers', $true).CreateSubKey('AES 128/128')
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\AES 128/128' 
+-name 'Enabled' -value '0' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure AES 256/256 Cipher Suite is Enabled
+AES 256/256 is the most recent and mature cipher suite for protecting the confidentiality
+and integrity of HTTP traffic. Enabling AES 256/256 is recommended. This is enabled by
+default on Server 2012 and 2012 R2.
+
+```ps1
+(Get-Item 'HKLM:\').OpenSubKey('SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers', $true).CreateSubKey('AES 256/256')
+New-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\AES 256/256' 
+-name 'Enabled' -value '1' -PropertyType 'DWord' -Force | Out-Null
+```
+
+### Ensure TLS Cipher Suite Ordering is Configured
+Cipher suites should be ordered from strongest to weakest in order to ensure that the more
+secure configuration is used for encryption between the server and client.
+
+```ps1
+# Configure Strong TLS Cipher Suites to support Perfect Forward Secrecy and HTTP/2 support
+# Cipher suites should be ordered from strongest to weakest i.e.
+# TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+# TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+# TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+# TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+
+New-Item 'HKLM:\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL\00010002' -Force | Out-Null
+New-ItemProperty -path 'HKLM:\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL\00010002' -name 'Functions' -value 'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256' -PropertyType 'MultiString' -Force | Out-Null
+```
