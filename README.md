@@ -555,15 +555,33 @@ To configure ETW logging:
 5. Select Both log file and ETW event
 6. Save your settings.
 
+## 6. FTP Requests
 
+### Ensure FTP requests are encrypted
+By using SSL, the FTP transmission is encrypted and secured from point to point and all
+FTP traffic as well as credentials are thereby guarded against interception.
 
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.applicationHost/sites/siteDefaults/ftpServer/security/ssl" 
+-name "controlChannelPolicy" -value "SslRequire"
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.applicationHost/sites/siteDefaults/ftpServer/security/ssl" 
+-name "dataChannelPolicy" -value "SslRequire"
+```
 
+###  Ensure FTP Logon attempt restrictions is enabled
+Successful brute force FTP attacks can allow an otherwise unauthorized user to make
+changes to data that should not be made. This could allow the unauthorized user to modify
+website code by uploading malicious software or even changing functionality for items
+such as online payments.
 
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.ftpServer/security/authentication/denyByFailure" 
+-name "enabled" -value "True"
+```
 
-| 6. FTP Requests                                                                             |
-| :------------------------------------------------------------------------------------------ |
-| 6.1 Ensure FTP requests are encrypted                                                       |
-| 6.2 Ensure FTP Logon attempt restrictions is enabled                                        |
 
 
 | 7. Transport Encryption                                                                     |
