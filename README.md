@@ -352,24 +352,157 @@ Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/'
 -filter "system.webServer/security/requestFiltering" -name "removeServerHeader" -value "True"
 ```
 
+## 4. Request Filtering and other Restriction Modules
 
-| 3.11 Ensure X-Powered-By Header is removed                                                  |
-| 3.12 Ensure Server Header is removed                                                        |
+### Ensure 'maxAllowedContentLength' is configured
+Setting an appropriate value that has been tested for the `maxAllowedContentLength` filter
+will lower the impact an abnormally large request would otherwise have on IIS and/or web
+applications. This helps to ensure availability of web content and services, and may also
+help mitigate the risk of buffer overflow type attacks in unmanaged components.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/requestFiltering/requestLimits" 
+-name "maxAllowedContentLength" -value 30000000
+```
+When request filtering is installed on a system, the default value is:
+`maxAllowedContentLength=“30000000”`, which is approximately 28.6MB.
+
+### Ensure 'maxURL request filter' is configured
+With a properly configured Request Filter limiting the amount of data accepted in the URL,
+chances of undesired application behaviors affecting the availability of content and services
+are reduced.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/requestFiltering/requestLimits" 
+-name "maxUrl" -value 4096
+```
+When Request Filtering is installed on a system, the default value for `maxURL=“4096”`.
+
+### Ensure 'MaxQueryString request filter' is configured
+With a properly configured Request Filter limiting the amount of data accepted in the
+query string, chances of undesired application behaviors such as app pool failures are
+reduced.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/requestFiltering/requestLimits" 
+-name "maxQueryString" -value 2048
+```
+When request filtering is installed on a system, the default value is `maxQueryString=“2048”`.
+
+### Ensure non-ASCII characters in URLs are not allowed
+This feature can help defend against canonicalization attacks, reducing the potential attack
+surface of servers, sites, and/or applications.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/requestFiltering" 
+-name "allowHighBitCharacters" -value "False"
+```
+When Request Filtering is installed on a system, the default behavior is to allow high-bit
+characters in URI.
+
+### Ensure Double-Encoded requests will be rejected
+This feature will help prevent attacks that rely on URLs that have been crafted to contain
+double-encoded request(s).
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/requestFiltering" 
+-name "allowDoubleEscaping" -value "True"
+```
+When Request Filtering is installed on a system, the default behavior is to not allow doubleencoded requests.
+
+### Ensure 'HTTP Trace Method' is disabled
+Attackers may abuse HTTP TRACE functionality to gain access to information in HTTP
+headers such as cookies and authentication data. This risk can be mitigated by not allowing
+the TRACE verb.
+
+```ps1
+Add-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/requestFiltering/verbs" 
+-name "." -value @{verb='TRACE';allowed='False'}
+```
+
+### Ensure Unlisted File Extensions are not allowed
+Disallowing all but the necessary file extensions can greatly reduce the attack surface of
+applications and servers.
+
+```ps1
+# Set the list of allowed extensions (customise to suit your needs)
+$SitePath = 'MACHINE/WEBROOT/APPHOST'
+$Filter = 'system.webServer/security/requestFiltering/fileExtensions'
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.aspx';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.ashx';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.js';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.css';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.json';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.png';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.woff';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.woff2';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.ttf';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.jpg';allowed='True'}
+Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.svg';allowed='True'}
+
+# Ensure Unlisted File Extensions are not allowed (e.g. .config, .backup, .bat)
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter
+"system.webServer/security/requestFiltering/fileExtensions" -name
+"allowUnlisted" -value "False"
+```
+
+### Ensure Handler is not granted Write and Script/Execute
+By allowing both `Execute/Script` and `Write` permissions, a handler can run malicious code
+on the target server. Ensuring these two permissions are never together will help lower the
+risk of malicious code being executed on the server.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/handlers" 
+-name "accessPolicy" -value "Read,Script"
+```
+The default handlers `accessPolicy` is `Read, Script`.
+
+### Ensure ‘notListedIsapisAllowed’ is set to false
+Restricting this attribute to `false` will help prevent potentially malicious ISAPI extensions
+from being run.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/isapiCgiRestriction" 
+-name "notListedIsapisAllowed" -value "False"
+```
+The default value for `notListedIsapisAllowed` is false.
+
+### Ensure ‘notListedCgisAllowed’ is set to false
+Restricting this attribute to `false` will help prevent unlisted CGI extensions, including
+potentially malicious CGI scripts from being run.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/isapiCgiRestriction" 
+-name "notListedCgisAllowed" -value "False"
+```
+The default value for notListedCgisAllowed is false.
+
+### Ensure ‘Dynamic IP Address Restrictions’ is enabled
+Dynamic IP address filtering allows administrators to configure the server to block access
+for IPs that exceed the specified number of requests or requests frequency. Ensure that you
+receive the Forbidden page once the block has been enforced.
+
+```ps1
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/dynamicIpSecurity/denyByConcurrentRequests" 
+-name "enabled" -value "True"
+
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/dynamicIpSecurity/denyByConcurrentRequests" 
+-name "maxConcurrentRequests" -value 5
+```
 
 
-| 4. Request Filtering and other Restriction Modules                                          |
-| :------------------------------------------------------------------------------------------ |
-| 4.1 Ensure 'maxAllowedContentLength' is configured                                          |
-| 4.2 Ensure 'maxURL request filter' is configured                                            |
-| 4.3 Ensure 'MaxQueryString request filter' is configured                                    |
-| 4.4 Ensure non-ASCII characters in URLs are not allowed                                     |
-| 4.5 Ensure Double-Encoded requests will be rejected                                         |
-| 4.6 Ensure 'HTTP Trace Method' is disabled                                                  |
-| 4.7  Ensure Unlisted File Extensions are not allowed                                        |
-| 4.8 Ensure Handler is not granted Write and Script/Execute                                  |
-| 4.9 Ensure ‘notListedIsapisAllowed’ is set to false                                         |
-| 4.10  Ensure ‘notListedCgisAllowed’ is set to false                                         |
-| 4.11 Ensure ‘Dynamic IP Address Restrictions’ is enabled                                    |
 
 
 | 5. IIS Logging Recommendations                                                              |
