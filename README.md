@@ -58,9 +58,9 @@ Setting Application Pools to use unique least privilege identities such as
 application ever become compromised.
 
 ```ps1
-Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter
-'system.applicationHost/applicationPools/add[@name='<apppool
-name>']/processModel' -name 'identityType' -value 'ApplicationPoolIdentity'
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter 'system.applicationHost/applicationPools/add[@name='<apppoolname>']/processModel' 
+-name 'identityType' -value 'ApplicationPoolIdentity'
 ```
 The example code above will set just the `DefaultAppPool`. Run this command for each
 configured Application Pool. Additionally, `ApplicationPoolIdentity` can be made the
@@ -153,7 +153,8 @@ during the login process, helping mitigate the risk of stolen user information.
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/Default Web Site' 
--filter 'system.web/authentication/forms' -name 'requireSSL' -value 'True'
+-filter 'system.web/authentication/forms' 
+-name 'requireSSL' -value 'True'
 ```
 
 ### Ensure 'forms authentication' is set to use cookies
@@ -164,7 +165,8 @@ proxy logs, browsing history, and be accessible to client scripting via `documen
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/Default Web Site' 
--filter 'system.web/authentication/forms' -name 'cookieless' -value 'UseCookies'
+-filter 'system.web/authentication/forms' 
+-name 'cookieless' -value 'UseCookies'
 ```
 
 ### Ensure 'cookie protection mode' is configured for forms authentication
@@ -173,8 +175,9 @@ cookie is assured. This helps mitigate the risk of attacks such as session hijac
 impersonation.
 
 ```ps1
-Get-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
--filter 'system.web/authentication/forms' -name 'protection'
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
+-filter 'system.web/authentication/forms' 
+-name 'protection' -value 'All'
 ```
 When cookies are used for Forms Authentication, the default cookie protection mode is
 `All`, meaning the application encrypts and validates the cookie.
@@ -186,7 +189,8 @@ credentials.
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -location '<website name>' 
--filter 'system.webServer/security/access' -name 'sslFlags' -value 'Ssl'
+-filter 'system.webServer/security/access' 
+-name 'sslFlags' -value 'Ssl'
 ```
 
 ### Ensure 'passwordFormat' is not set to clear
@@ -195,7 +199,8 @@ authentication credentials.
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
--filter 'system.web/authentication/forms/credentials' -name 'passwordFormat' -value 'SHA1'
+-filter 'system.web/authentication/forms/credentials' 
+-name 'passwordFormat' -value 'SHA1'
 ```
 The default `passwordFormatmethod` is SHA1.
 
@@ -233,7 +238,8 @@ information leakage falling into unscrupulous hands.
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
--filter "system.web/compilation" -name "debug" -value "False"
+-filter "system.web/compilation" 
+-name "debug" -value "False"
 ```
 
 ### Ensure custom error messages are not off
@@ -244,7 +250,8 @@ information.
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/Default Web Site' 
--filter "system.web/customErrors" -name "mode" -value "RemoteOnly"
+-filter "system.web/customErrors" 
+-name "mode" -value "RemoteOnly"
 ```
 
 ### Ensure IIS HTTP detailed errors are hidden from displaying remotely
@@ -255,7 +262,8 @@ information as to how the application works.
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
--filter "system.webServer/httpErrors" -name "errorMode" -value "DetailedLocalOnly"
+-filter "system.webServer/httpErrors" 
+-name "errorMode" -value "DetailedLocalOnly"
 ```
 The default `errorMode` is DetailedLocalOnly.
 
@@ -268,7 +276,8 @@ help mitigate the risk of malicious persons learning detailed stack trace inform
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
--filter "system.web/trace" -name "enabled" -value "False"
+-filter "system.web/trace" 
+-name "enabled" -value "False"
 ```
 The default value for ASP.NET tracing is off.
 
@@ -280,7 +289,8 @@ accessible to client scripting via `document.location`.
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST/<website name>'
--filter "system.web/sessionState" -name "mode" -value "StateServer"
+-filter "system.web/sessionState" 
+-name "mode" -value "StateServer"
 ```
 
 ### Ensure 'cookies' are set with HttpOnly attribute
@@ -320,7 +330,8 @@ be used as the validation method for the MachineKey in .Net 4.5.
 ```ps1
 # Use AES encryption for the ASP.NET Machine Key
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT' 
--filter "system.web/machineKey" -name "validation" -value "AES"
+-filter "system.web/machineKey" 
+-name "validation" -value "AES"
 ```
 The default Machine Key validation method is SHA256.
 
@@ -329,7 +340,8 @@ This only applies to .Net 2.0. Future versions have stopped supporting this feat
 
 ```ps1
 Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT' 
--filter "system.web/trust" -name "level" -value "Medium"
+-filter "system.web/trust" 
+-name "level" -value "Medium"
 ```
 By default, ASP.NET web applications run under the full trust setting
 
@@ -339,7 +351,8 @@ harder and prevents some potential attackers.
 
 ```ps1
 Remove-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
--filter "system.webserver/httpProtocol/customHeaders" -name "." -AtElement @{name='XPowered-By'}
+-filter "system.webserver/httpProtocol/customHeaders" 
+-name "." -AtElement @{name='XPowered-By'}
 ```
 
 ### Ensure Server Header is removed
@@ -448,9 +461,9 @@ Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value 
 Add-WebConfigurationProperty -pspath $SitePath -filter $Filter -name "." -value @{fileExtension='.svg';allowed='True'}
 
 # Ensure Unlisted File Extensions are not allowed (e.g. .config, .backup, .bat)
-Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' -filter
-"system.webServer/security/requestFiltering/fileExtensions" -name
-"allowUnlisted" -value "False"
+Set-WebConfigurationProperty -pspath 'MACHINE/WEBROOT/APPHOST' 
+-filter "system.webServer/security/requestFiltering/fileExtensions" 
+-name "allowUnlisted" -value "False"
 ```
 
 ### Ensure Handler is not granted Write and Script/Execute
